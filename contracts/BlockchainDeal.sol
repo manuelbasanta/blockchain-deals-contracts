@@ -42,12 +42,12 @@ contract BlockchainDeal {
         owner = payable(msg.sender);
     }
 
-    function createArbitrerDeal(address _arbitrer, address _seller, uint _expirationTime) external payable {
-        require(msg.value > 0, "Value has to be grater than 0");
+    function createArbitrerDeal(uint _value, address _arbitrer, address _seller, uint _expirationTime) external payable {
+        require(_value > 0 && _value <= msg.value, "Invalid value");
         uint id = arbiterDeals.length;
-        ArbitrerDeal memory newArbitrerDeal = ArbitrerDeal(id, DealType.Arbitrer, msg.value, _arbitrer, msg.sender, _seller, block.timestamp, block.timestamp + _expirationTime, State.PendingApproval);
+        ArbitrerDeal memory newArbitrerDeal = ArbitrerDeal(id, DealType.Arbitrer, _value, _arbitrer, msg.sender, _seller, block.timestamp, block.timestamp + _expirationTime, State.PendingApproval);
         arbiterDeals.push(newArbitrerDeal);
-        emit DealCreated("arbitrer", id, msg.sender, _seller, _arbitrer, block.timestamp + _expirationTime, msg.value, "pending_approval");
+        emit DealCreated("arbitrer", id, msg.sender, _seller, _arbitrer, block.timestamp + _expirationTime, _value, "pending_approval");
     }
 
     function approveArbitrerDeal(uint _id) external {
