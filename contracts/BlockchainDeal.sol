@@ -42,6 +42,11 @@ contract BlockchainDeal {
         owner = payable(msg.sender);
     }
 
+    function getArbitrerDealById(uint _id) public view returns(ArbitrerDeal memory) {
+        ArbitrerDeal memory deal = arbiterDeals[_id];
+        return(deal);
+    }
+
     function createArbitrerDeal(uint _value, address _arbitrer, address _seller, uint _expirationTime) external payable {
         require(_value > 0 && _value <= msg.value, "Invalid value");
         uint id = arbiterDeals.length;
