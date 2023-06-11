@@ -12,7 +12,8 @@ contract BlockchainDeal {
 
     enum State {
         PendingApproval,
-        Completed
+        Completed,
+        ValueClaimed
     }
 
     enum DealType {
@@ -42,6 +43,8 @@ contract BlockchainDeal {
         owner = payable(msg.sender);
     }
 
+    // Arbitrer
+
     function getArbitrerDealById(uint _id) public view returns(ArbitrerDeal memory) {
         ArbitrerDeal memory deal = arbiterDeals[_id];
         return(deal);
@@ -55,7 +58,7 @@ contract BlockchainDeal {
         emit DealCreated("arbitrer", id, msg.sender, _seller, _arbitrer, block.timestamp + _expirationTime, _value, "pending_approval");
     }
 
-    function approveArbitrerDeal(uint _id) external {
+    function approveArbitrerDeal(uint _id) external payable {
         ArbitrerDeal storage deal = arbiterDeals[_id];
         require(deal.dealType == DealType.Arbitrer);
         require(deal.arbitrer == msg.sender, "Not allowed to approve Deal");
@@ -64,5 +67,14 @@ contract BlockchainDeal {
         (bool sent, ) = payable(deal.seller).call{value: deal.value}("");
         require(sent, "Failed to send Ether");
         deal.state = State.Completed;
+    }
+
+    function claimArbitrerExpired(uint _id) external payable {
+        ArbitrerDeal storage deal = arbiterDeals[_id];
+        require(deal.buyer == msg.sender, "Not allowed to claim Deal");
+        require(block.timestamp > deal.expirationTime, "The deal has not expired yet");
+        (bool sent, ) = payable(deal.buyer).call{value: deal.value}("");
+        require(sent, "Failed to send Ether");
+        deal.state = State.ValueClaimed;
     }
 }
