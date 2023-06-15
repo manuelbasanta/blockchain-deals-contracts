@@ -8,7 +8,7 @@
     "compile": "npx hardhat compile",
     "deploy:sepolia": "npx hardhat run scripts/deploy.js --network sepolia",
     "deploy:local": "npx hardhat run scripts/deploy.js --network localhost",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "REPORT_GAS=true npx hardhat coverage"
   },
   "author": "Manuel Basanta",
   "license": "ISC",

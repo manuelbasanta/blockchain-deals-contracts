@@ -7,13 +7,13 @@
 const hre = require("hardhat");
 
 async function main() {
-  const BlockchainDeal = await hre.ethers.getContractFactory("BlockchainDeal");
-  const blockchainDeal = await BlockchainDeal.deploy();
+  const BlockchainDeals = await hre.ethers.getContractFactory("BlockchainDeals");
+  const blockchainDeals = await BlockchainDeals.deploy();
 
-  await blockchainDeal.deployed();
+  await blockchainDeals.deployed();
 
   console.log(
-    `BlockchainDeal deployed to ${blockchainDeal.address}`
+    `BlockchainDeal deployed to ${blockchainDeals.address}`
   );
 }
 
