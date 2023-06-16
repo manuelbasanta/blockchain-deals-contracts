@@ -119,8 +119,8 @@ contract BlockchainDeals {
      * array. Arbitrer deals require an Arbitrer (The address that will approve the deal).
      * Emits an event with Deal information
      * @param _value uint The amount of eth the beneficiary will recieve upon Deal apporval.
-     * @param _arbitrer address Address of the arbitrer tha will approve the Deal.
-     * @param _beneficiary address The address that will recieve the ETH value upon Deal apporval.
+     * @param _arbitrer address Address of the arbitrer tha will approve the Deal. Should be different than creator (msg.snder) and _beneficiary
+     * @param _beneficiary address The address that will recieve the ETH value upon Deal apporval. Should be different than creator (msg.snder) and _arbitrer
      * @param _expirationTime uint Is added to the block.timestamp to set the limit for when the deal
      * can be approved by the arbitrer. After this deadline is reached the Deal will no longer be valid
      * and it's value can be retrieved by the creator of the Deal.
@@ -187,7 +187,7 @@ contract BlockchainDeals {
      * Emits an event with Deal information. This Deal can be canceled by the creator
      * if the Deal hasn't been confirmed bt the beneficiary yet.
      * @param _value uint The amount of ETH the beneficiary will recieve upon Deal completion.
-     * @param _beneficiary address The address that will recieve the ETH value upon Deal completion.
+     * @param _beneficiary address The address that will recieve the ETH value upon Deal completion. Should be different than creator (msg.snder)
      * @param _beneficiaryDeposit uint The amount of ETH the beneficiary has to deposit in order to confirm the Deal.
      * @param _creatorDeposit uint The amount of ETH the creator has to deposit in order to create the Deal.
     */
