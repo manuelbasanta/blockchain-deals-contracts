@@ -126,6 +126,7 @@ contract BlockchainDeals {
      * and it's value can be retrieved by the creator of the Deal.
     */
     function createArbitrerDeal(uint _value, address _arbitrer, address _beneficiary, uint _expirationTime) external payable {
+        require(_arbitrer != msg.sender && _beneficiary != msg.sender && _beneficiary != _arbitrer, "Creator, beneficiary and arbitrer should all be different");
         require(_value > 0 && _value <= msg.value, "Invalid value");
         require(_expirationTime > 86300, "Should expire in at least a day");
         uint id = arbitrerDeals.length;
@@ -191,6 +192,7 @@ contract BlockchainDeals {
      * @param _creatorDeposit uint The amount of ETH the creator has to deposit in order to create the Deal.
     */
     function createTrustlessDeal(uint _value, address _beneficiary, uint _beneficiaryDeposit, uint _creatorDeposit) external payable {
+        require(_beneficiary != msg.sender, "The creator can't also be the beneficiary");
         require(_value > 0 && _creatorDeposit >= _value && _value + _creatorDeposit <= msg.value, "Invalid value or deposit");
         uint id = trustlessDeals.length;
         TrustlessDeal memory newTrustlessDeal = TrustlessDeal(id, DealType.Trustless, _value, _beneficiaryDeposit, _creatorDeposit, msg.sender, _beneficiary, block.timestamp, State.PendingBeneficiaryDeposit);

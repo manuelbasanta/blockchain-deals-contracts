@@ -1,7 +1,6 @@
 const {
     loadFixture,
   } = require("@nomicfoundation/hardhat-network-helpers");
-  const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
   const { expect } = require("chai");
 
   describe("BlockchainDeals", function () {
@@ -10,12 +9,12 @@ const {
     // and reset Hardhat Network to that snapshot in every test.
     async function deployFixture() {
       // Contracts are deployed using the first signer/account by default
-      const [owner, otherAccount] = await ethers.getSigners();
+      const [owner, beneficiaryAccount, arbitrerAccount] = await ethers.getSigners();
   
       const BlockchainDeals = await ethers.getContractFactory("BlockchainDeals");
       const blockchainDeals = await BlockchainDeals.deploy();
   
-      return { blockchainDeals, owner, otherAccount };
+      return { blockchainDeals, owner, beneficiaryAccount, arbitrerAccount };
     }
   
     describe("Deployment", function () {
@@ -42,37 +41,37 @@ const {
         });
     
         it("should revert fee change from not owner account", async function () {
-          const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+          const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           expect(await blockchainDeals.fee()).to.equal(10);
-          blockchainDeals.connect(otherAccount).changeFee(100)
+          blockchainDeals.connect(beneficiaryAccount).changeFee(100)
           
-          await expect(blockchainDeals.connect(otherAccount).changeFee(100)).to.be.revertedWith(
+          await expect(blockchainDeals.connect(beneficiaryAccount).changeFee(100)).to.be.revertedWith(
             "Only the owner can perform this action."
           );
           expect(await blockchainDeals.fee()).to.equal(10);
         });
 
         it("should be able to change owner", async function () {
-            const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+            const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
       
             expect(await blockchainDeals.owner()).to.equal(owner.address);
-            blockchainDeals.changeOwner(otherAccount.address);
-            expect(await blockchainDeals.owner()).to.equal(otherAccount.address);
+            blockchainDeals.changeOwner(beneficiaryAccount.address);
+            expect(await blockchainDeals.owner()).to.equal(beneficiaryAccount.address);
         });
 
         it("should revert to change owner", async function () {
-            const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+            const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
       
             expect(await blockchainDeals.owner()).to.equal(owner.address);
-            await expect(blockchainDeals.connect(otherAccount).changeOwner(otherAccount.address)).to.be.revertedWith(
+            await expect(blockchainDeals.connect(beneficiaryAccount).changeOwner(beneficiaryAccount.address)).to.be.revertedWith(
                 "Only the owner can perform this action."
             );
             expect(await blockchainDeals.owner()).to.equal(owner.address);
         });
 
         it("should not be able to withdraw earnings if not owner", async function () {
-            const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
-            await expect(blockchainDeals.connect(otherAccount).withdrawFeeEarnings()).to.be.revertedWith(
+            const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
+            await expect(blockchainDeals.connect(beneficiaryAccount).withdrawFeeEarnings()).to.be.revertedWith(
                 "Only the owner can perform this action."
             );
         });
@@ -85,17 +84,17 @@ const {
         });
 
         it("should be able to withdraw earnings after deals completed", async function () {
-            const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+            const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
           
             const value = 1000000;
             const creatorDeposit = 1200000;
             const beneficiaryDeposit = 300000;
             const fee = value * 10 / 10000;
-            await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+            await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                 value: creatorDeposit + value
             });
 
-            await blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
+            await blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
             await blockchainDeals.completeTrustlessDeal(0);
             const prevBalance = await hre.ethers.provider.getBalance(owner.address);
             const tx = await blockchainDeals.withdrawFeeEarnings();
@@ -116,14 +115,14 @@ const {
             });
 
             it("should get deal with a valid ID", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, 86400, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, 86400, {
                     value
                 });
                 const deal = await blockchainDeals.getArbitrerDealById(0);
-                expect(deal.arbitrer).to.equal(owner.address);
-                expect(deal.beneficiary).to.equal(otherAccount.address);
+                expect(deal.arbitrer).to.equal(arbitrerAccount.address);
+                expect(deal.beneficiary).to.equal(beneficiaryAccount.address);
                 expect(deal.id).to.equal(0);
                 expect(deal.value).to.equal(value);
             });
@@ -131,10 +130,10 @@ const {
 
         describe("createArbitrerDeal", function () {
             it("should revert creation with value 0", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
           
                 const value = 0;
-                await expect(blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, 86400, {
+                await expect(blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, 86400, {
                     value
                 })).to.be.revertedWith(
                     "Invalid value"
@@ -142,9 +141,9 @@ const {
             });
 
             it("should revert creation with msg.value less than Deal value", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
           
-                await expect(blockchainDeals.createArbitrerDeal(10000, owner.address, otherAccount.address, 86400, {
+                await expect(blockchainDeals.createArbitrerDeal(10000, arbitrerAccount.address, beneficiaryAccount.address, 86400, {
                     value: 100
                 })).to.be.revertedWith(
                     "Invalid value"
@@ -152,28 +151,58 @@ const {
             });
 
             it("should revert creation with expiration time less than a day", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 10000;
-                await expect(blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, 6400, {
+                await expect(blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, 6400, {
                     value
                 })).to.be.revertedWith(
                     "Should expire in at least a day"
                 );
             });
 
+            it("should revert creation with if the creator is also the arbitrer", async function () {
+                const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
+                const value = 10000;
+                await expect(blockchainDeals.createArbitrerDeal(value, owner.address, beneficiaryAccount.address, 86400, {
+                    value
+                })).to.be.revertedWith(
+                    "Creator, beneficiary and arbitrer should all be different"
+                );
+            });
+
+            it("should revert creation with if the creator is also the beneficiary", async function () {
+                const { blockchainDeals, owner, arbitrerAccount } = await loadFixture(deployFixture);
+                const value = 10000;
+                await expect(blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, owner.address, 86400, {
+                    value
+                })).to.be.revertedWith(
+                    "Creator, beneficiary and arbitrer should all be different"
+                );
+            });
+
+            it("should revert creation with if the arbitrer is also the beneficiary", async function () {
+                const { blockchainDeals, arbitrerAccount } = await loadFixture(deployFixture);
+                const value = 10000;
+                await expect(blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, arbitrerAccount.address, 86400, {
+                    value
+                })).to.be.revertedWith(
+                    "Creator, beneficiary and arbitrer should all be different"
+                );
+            });
+
             it("should create arbitrer Deal", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expirationTime = 86400;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, expirationTime, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expirationTime, {
                     value
                 });
                 const {timestamp} = await hre.ethers.provider.getBlock("latest")
                 const deal = await blockchainDeals.getArbitrerDealById(0);
 
                 expect(deal.creator).to.equal(owner.address);
-                expect(deal.arbitrer).to.equal(owner.address);
-                expect(deal.beneficiary).to.equal(otherAccount.address);
+                expect(deal.arbitrer).to.equal(arbitrerAccount.address);
+                expect(deal.beneficiary).to.equal(beneficiaryAccount.address);
                 expect(deal.id).to.equal(0);
                 expect(deal.value).to.equal(value);
                 expect(deal.creationTime).to.equal(timestamp);
@@ -183,92 +212,92 @@ const {
             });
 
             it("should emit DealCreated event", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expirationTime = 86400;
                 const timestamp = await hre.ethers.provider.send("evm_setNextBlockTimestamp", [1786774140])
 
-                await expect(blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, 86400, {
+                await expect(blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, 86400, {
                     value
                 }))
                     .to.emit(blockchainDeals, "DealCreated")
-                    .withArgs("arbitrer", 0, owner.address, otherAccount.address, owner.address, expirationTime + Number(timestamp), value, "pending_approval");
+                    .withArgs("arbitrer", 0, owner.address, beneficiaryAccount.address, arbitrerAccount.address, expirationTime + Number(timestamp), value, "pending_approval");
             });
         });
 
         describe("approveArbitrerDeal", function () {
             it("should revert for invalid Deal ID", async function () {
-                const { blockchainDeals } = await loadFixture(deployFixture);
+                const { blockchainDeals, arbitrerAccount } = await loadFixture(deployFixture);
 
-                await expect(blockchainDeals.approveArbitrerDeal(1)).to.be.revertedWith(
+                await expect(blockchainDeals.connect(arbitrerAccount).approveArbitrerDeal(1)).to.be.revertedWith(
                     "Invalid ID"
                 );
             });
 
             it("should revert if the msg.sender is not the arbitrer", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, 86400, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, 86400, {
                     value
                 });
 
-                await expect(blockchainDeals.connect(otherAccount).approveArbitrerDeal(0)).to.be.revertedWith(
+                await expect(blockchainDeals.connect(beneficiaryAccount).approveArbitrerDeal(0)).to.be.revertedWith(
                     "Not allowed to approve Deal"
                 );
             });
 
             it("should revert if the Deal has already expired", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, arbitrerAccount, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expiration = 86400;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, expiration, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expiration, {
                     value
                 });
                 const {timestamp} = await hre.ethers.provider.getBlock("latest")
                 hre.ethers.provider.send("evm_setNextBlockTimestamp", [timestamp + expiration ])
-                await expect(blockchainDeals.approveArbitrerDeal(0)).to.be.revertedWith(
+                await expect(blockchainDeals.connect(arbitrerAccount).approveArbitrerDeal(0)).to.be.revertedWith(
                     "The deal has expired"
                 );
             });
 
             it("should revert if the Deal state is Completed", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, arbitrerAccount, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expiration = 86400;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, expiration, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expiration, {
                     value
                 });
-                await blockchainDeals.approveArbitrerDeal(0);
+                await blockchainDeals.connect(arbitrerAccount).approveArbitrerDeal(0);
 
-                await expect(blockchainDeals.approveArbitrerDeal(0)).to.be.revertedWith(
+                await expect(blockchainDeals.connect(arbitrerAccount).approveArbitrerDeal(0)).to.be.revertedWith(
                     "The deal has already been approved or it's value claimed"
                 );
             });
 
             it("should change Deal state to Completed", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, arbitrerAccount, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expiration = 86400;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, expiration, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expiration, {
                     value
                 });
 
-                await blockchainDeals.approveArbitrerDeal(0);
+                await blockchainDeals.connect(arbitrerAccount).approveArbitrerDeal(0);
                 const deal = await blockchainDeals.getArbitrerDealById(0);
                 expect(deal.state).to.equal(1);
             });
 
             it("should send ETH to beneficiary", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, arbitrerAccount, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expiration = 86400;
-                const prevBeneficiaryBalance = await hre.ethers.provider.getBalance(otherAccount.address);
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, expiration, {
+                const prevBeneficiaryBalance = await hre.ethers.provider.getBalance(beneficiaryAccount.address);
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expiration, {
                     value
                 });
-                await blockchainDeals.approveArbitrerDeal(0);
+                await blockchainDeals.connect(arbitrerAccount).approveArbitrerDeal(0);
 
-                const newBeneficiaryBalance = await hre.ethers.provider.getBalance(otherAccount.address);
+                const newBeneficiaryBalance = await hre.ethers.provider.getBalance(beneficiaryAccount.address);
                 expect(newBeneficiaryBalance).to.equal(BigInt(prevBeneficiaryBalance) + BigInt(value));
             });
         });
@@ -283,22 +312,22 @@ const {
             });
 
             it("should revert if the msg.sender is not the creator", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, arbitrerAccount, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, 86400, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, 86400, {
                     value
                 });
 
-                await expect(blockchainDeals.connect(otherAccount).claimArbitrerExpired(0)).to.be.revertedWith(
+                await expect(blockchainDeals.connect(beneficiaryAccount).claimArbitrerExpired(0)).to.be.revertedWith(
                     "Not allowed to claim Deal"
                 );
             });
 
             it("should revert if the Deal has not expired yet", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expiration = 86400;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, expiration, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expiration, {
                     value
                 });
 
@@ -308,13 +337,13 @@ const {
             });
 
             it("should revert if the Deal state is Completed", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expiration = 86400;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, expiration, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expiration, {
                     value
                 });
-                await blockchainDeals.approveArbitrerDeal(0);
+                await blockchainDeals.connect(arbitrerAccount).approveArbitrerDeal(0);
                 const {timestamp} = await hre.ethers.provider.getBlock("latest");
                 hre.ethers.provider.send("evm_setNextBlockTimestamp", [timestamp + expiration ]);
 
@@ -324,10 +353,10 @@ const {
             });
 
             it("should revert if the Deal state is already ValueClaimed", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expiration = 86400;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, expiration, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expiration, {
                     value
                 });
 
@@ -342,10 +371,10 @@ const {
             });
 
             it("should change Deal state to ValueClaimed", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expiration = 86400;
-                await blockchainDeals.createArbitrerDeal(value, owner.address, otherAccount.address, expiration, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expiration, {
                     value
                 });
 
@@ -360,10 +389,10 @@ const {
             });
 
             it("should send ETH to creator", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount, arbitrerAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const expiration = 86400;
-                await blockchainDeals.createArbitrerDeal(value, otherAccount.address, otherAccount.address, expiration, {
+                await blockchainDeals.createArbitrerDeal(value, arbitrerAccount.address, beneficiaryAccount.address, expiration, {
                     value
                 });
 
@@ -392,15 +421,15 @@ const {
             });
 
             it("should get deal with a valid ID", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const deposit = 1000000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, deposit, deposit , {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, deposit, deposit , {
                     value: deposit + value
                 });
 
                 const deal = await blockchainDeals.getTrustlessDealById(0);
-                expect(deal.beneficiary).to.equal(otherAccount.address);
+                expect(deal.beneficiary).to.equal(beneficiaryAccount.address);
                 expect(deal.id).to.equal(0);
                 expect(deal.value).to.equal(value);
                 expect(deal.beneficiaryDeposit).to.equal(deposit);
@@ -410,11 +439,11 @@ const {
 
         describe("createTrustlessDeal", function () {
             it("should revert creation with value 0", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 0;
                 const deposit = 1000;
-                await expect(blockchainDeals.createTrustlessDeal(value, otherAccount.address, deposit, deposit , {
+                await expect(blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, deposit, deposit , {
                     value: deposit + value
                 })).to.be.revertedWith(
                     "Invalid value or deposit"
@@ -422,11 +451,11 @@ const {
             });
 
             it("should revert if creators deposit is less than value", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000;
                 const deposit = 999;
-                await expect(blockchainDeals.createTrustlessDeal(value, otherAccount.address, deposit, deposit , {
+                await expect(blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, deposit, deposit , {
                     value: deposit + value
                 })).to.be.revertedWith(
                     "Invalid value or deposit"
@@ -434,31 +463,42 @@ const {
             });
 
             it("should revert if msg.value is less than value + creator's deposit", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000;
                 const deposit = 1200;
-                await expect(blockchainDeals.createTrustlessDeal(value, otherAccount.address, deposit, deposit , {
+                await expect(blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, deposit, deposit , {
                     value
                 })).to.be.revertedWith(
                     "Invalid value or deposit"
                 );
             });
 
+            it("should revert if creator is the same as beneficiary", async function () {
+                const { blockchainDeals, owner } = await loadFixture(deployFixture);
+                const value = 1000;
+                const deposit = 1200;
+                await expect(blockchainDeals.createTrustlessDeal(value, owner.address, deposit, deposit , {
+                    value: deposit + value
+                })).to.be.revertedWith(
+                    "The creator can't also be the beneficiary"
+                );
+            });
+
             it("should create Trustless Deal", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
 
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
                 const {timestamp} = await hre.ethers.provider.getBlock("latest")
                 const deal = await blockchainDeals.getTrustlessDealById(0);
 
                 expect(deal.creator).to.equal(owner.address);
-                expect(deal.beneficiary).to.equal(otherAccount.address);
+                expect(deal.beneficiary).to.equal(beneficiaryAccount.address);
                 expect(deal.id).to.equal(0);
                 expect(deal.value).to.equal(value);
                 expect(deal.creationTime).to.equal(timestamp);
@@ -469,29 +509,29 @@ const {
             });
 
             it("should emit DealCreated event", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
                 const timestamp = await hre.ethers.provider.send("evm_setNextBlockTimestamp", [1786774140])
 
-                await expect(blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await expect(blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 }))
                     .to.emit(blockchainDeals, "DealCreated")
-                    .withArgs("trustless", 0, owner.address, otherAccount.address, ethers.constants.AddressZero, timestamp, value, "pending_beneficiary_deposit");
+                    .withArgs("trustless", 0, owner.address, beneficiaryAccount.address, ethers.constants.AddressZero, timestamp, value, "pending_beneficiary_deposit");
             });
         });
         
 
         describe("unilateralCancelTrustlessDeal", function () {
             it("should revert when trying to cancel a deal with an invalid ID", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
@@ -501,16 +541,16 @@ const {
             });
 
             it("should revert if state is not PendingBeneficiaryDeposit", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
-                await blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {
+                await blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {
                     value: beneficiaryDeposit
                 });
 
@@ -522,29 +562,29 @@ const {
             });
 
             it("should revert if msg.sender is not the creator", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
                 await expect(
-                    blockchainDeals.connect(otherAccount).unilateralCancelTrustlessDeal(0)
+                    blockchainDeals.connect(beneficiaryAccount).unilateralCancelTrustlessDeal(0)
                 ).to.be.revertedWith(
                     "Only the creator can cancel the Deal"
                 );
             });
 
             it("should send the creators deposit to the creator", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
@@ -557,12 +597,12 @@ const {
             });
 
             it("should change Deal state to CancelledByCreator", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
@@ -576,27 +616,27 @@ const {
 
         describe("confirmBeneficiary", async function () {
             it("should revert when trying to confirm a deal with an invalid ID", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
-                await expect(blockchainDeals.connect(otherAccount).confirmBeneficiary(1, {value: beneficiaryDeposit})).to.be.revertedWith(
+                await expect(blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(1, {value: beneficiaryDeposit})).to.be.revertedWith(
                     "Invalid ID"
                 );
             });
 
             it("should revert when trying the msg.sender is not the beneficiary", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
@@ -606,48 +646,48 @@ const {
             });
 
             it("should revert when the msg.value is less than the beneficiary's deposit", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
-                await expect(blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {value: 1000})).to.be.revertedWith(
+                await expect(blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {value: 1000})).to.be.revertedWith(
                     "Not enough ETH to confirm deposit"
                 );
             });
 
             it("should revert if state is not PendingBeneficiaryDeposit", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
                 await blockchainDeals.unilateralCancelTrustlessDeal(0);
 
-                await expect(blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {value: beneficiaryDeposit})).to.be.revertedWith(
+                await expect(blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {value: beneficiaryDeposit})).to.be.revertedWith(
                     "Deal can't be confirmed"
                 );
             });
 
             it("should change Deal state to Confirmed", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
-                await blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
+                await blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
 
                 const deal = await blockchainDeals.getTrustlessDealById(0);
 
@@ -657,16 +697,16 @@ const {
 
         describe("completeTrustlessDeal", async function () {
             it("should revert when trying to confirm a deal with an invalid ID", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
-                await blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
+                await blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
 
                 await expect(blockchainDeals.completeTrustlessDeal(1)).to.be.revertedWith(
                     "Invalid ID"
@@ -674,29 +714,29 @@ const {
             });
 
             it("should revert if the msg.sender is not the creator", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
-                await blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
+                await blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
 
-                await expect(blockchainDeals.connect(otherAccount).completeTrustlessDeal(0)).to.be.revertedWith(
+                await expect(blockchainDeals.connect(beneficiaryAccount).completeTrustlessDeal(0)).to.be.revertedWith(
                     "Only the creator can complete the Deal"
                 );
             });
 
             it("should revert if the Deal is not confirmed", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
@@ -706,16 +746,16 @@ const {
             });
 
             it("should send the creators deposit minus the fee to the creator", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
                 const fee = value * 10 / 10000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
-                await blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
+                await blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
                 const prevBalance = await hre.ethers.provider.getBalance(owner.address);
                 const tx = await blockchainDeals.completeTrustlessDeal(0);
                 const receipt = await tx.wait();
@@ -725,34 +765,34 @@ const {
             });
 
             it("should send the beneficiary deposit plus the value to the beneficiary", async function () {
-                const { blockchainDeals, owner, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, owner, beneficiaryAccount } = await loadFixture(deployFixture);
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
                 const fee = value * 10 / 10000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
-                await blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
-                const prevBalance = await hre.ethers.provider.getBalance(otherAccount.address);
+                await blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
+                const prevBalance = await hre.ethers.provider.getBalance(beneficiaryAccount.address);
                 await blockchainDeals.completeTrustlessDeal(0);
-                const newBalance = await hre.ethers.provider.getBalance(otherAccount.address);
+                const newBalance = await hre.ethers.provider.getBalance(beneficiaryAccount.address);
 
                 expect(newBalance).to.equal(BigInt(prevBalance) + BigInt(beneficiaryDeposit) + BigInt(value));
             });
 
             it("should change Deal state to Completed", async function () {
-                const { blockchainDeals, otherAccount } = await loadFixture(deployFixture);
+                const { blockchainDeals, beneficiaryAccount } = await loadFixture(deployFixture);
           
                 const value = 1000000;
                 const creatorDeposit = 1200000;
                 const beneficiaryDeposit = 300000;
-                await blockchainDeals.createTrustlessDeal(value, otherAccount.address, beneficiaryDeposit, creatorDeposit, {
+                await blockchainDeals.createTrustlessDeal(value, beneficiaryAccount.address, beneficiaryDeposit, creatorDeposit, {
                     value: creatorDeposit + value
                 });
 
-                await blockchainDeals.connect(otherAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
+                await blockchainDeals.connect(beneficiaryAccount).confirmBeneficiary(0, {value: beneficiaryDeposit});
                 await blockchainDeals.completeTrustlessDeal(0);
 
                 const deal = await blockchainDeals.getTrustlessDealById(0);
