@@ -6,8 +6,14 @@ pragma solidity ^0.8.9;
 
 /**
  *  @title BlockchainDeals
+ *
+ **********************************************************************************************************
+ * Exchange goods for ETH safely, with friends or complete extrangers, backed by the Ethereum blockchain. *
+ **********************************************************************************************************
+ *
+ *
  *  The Deal manager contract. Keeps track of every deal ever created and supports
- *  3 kinds of deal: Trustless, Arbitrer and Timelocked. Each type of deal has it's own
+ *  2 kinds of deal: Trustless and Arbitrer. Each type of deal has it's own
  *  storage and it's own set of requirements and functions.
  */
 contract BlockchainDeals {
@@ -36,8 +42,7 @@ contract BlockchainDeals {
     // Deal types
     enum DealType {
         Trustless,
-        Arbitrer,
-        TimeLocked
+        Arbitrer
     }
 
     modifier onlyOwner() {
