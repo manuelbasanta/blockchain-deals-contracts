@@ -8,6 +8,10 @@ module.exports = {
     sepolia: {
       url: process.env.SEPOLIA_URL,
       accounts: [process.env.PRIVATE_KEY],
-    }
+    },
+    polygon_mumbai: {
+      url: process.env.MUMBAI_URL,
+      accounts: [process.env.MUMBAI_PRIVATE_KEY]
+   }
   }
 };

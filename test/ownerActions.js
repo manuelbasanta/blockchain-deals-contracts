@@ -73,12 +73,12 @@ describe("Owner actions", function () {
         const buyerDeposit = 1200000;
         const sellerDeposit = 300000;
         const fee = value * 10 / 10000;
-        await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+        await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
             value: buyerDeposit + value
         });
 
-        await blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit});
-        await blockchainDeals.completeTrustlessDeal(0);
+        await blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit});
+        await blockchainDeals.completeDeal(0);
 
         const prevBalance = await hre.ethers.provider.getBalance(owner.address);
         const tx = await blockchainDeals.withdrawFeeEarnings();

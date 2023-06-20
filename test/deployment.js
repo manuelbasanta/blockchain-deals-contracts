@@ -7,12 +7,12 @@ describe("Deployment", function () {
     // and reset Hardhat Network to that snapshot in every test.
     async function deployFixture() {
         // Contracts are deployed using the first signer/account by default
-        const [owner, otherAccount, arbitrerAccount] = await ethers.getSigners();
+        const [owner, otherAccount] = await ethers.getSigners();
 
         const BlockchainDeals = await ethers.getContractFactory("BlockchainDeals");
         const blockchainDeals = await BlockchainDeals.deploy();
 
-        return { blockchainDeals, owner, otherAccount, arbitrerAccount };
+        return { blockchainDeals, owner, otherAccount };
     }
     it("should set the right fee", async function () {
     const { blockchainDeals } = await loadFixture(deployFixture);

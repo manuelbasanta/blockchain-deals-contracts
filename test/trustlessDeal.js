@@ -1,7 +1,8 @@
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 const { expect } = require("chai");
+const dealStateMapper = require("./dealData");
 
-describe("Trustless Deal", function () {
+describe("Deal", function () {
     // We define a fixture to reuse the same setup in every test.
     // We use loadFixture to run this setup once, snapshot that state,
     // and reset Hardhat Network to that snapshot in every test.
@@ -15,11 +16,11 @@ describe("Trustless Deal", function () {
         return { blockchainDeals, owner, otherAccount };
     }
 
-    describe("getTrustlessDealById", function () {
+    describe("getDealById", function () {
         it("should revert when trying to get deal with an invalid ID", async function () {
             const { blockchainDeals } = await loadFixture(deployFixture);
       
-            await expect(blockchainDeals.getTrustlessDealById(1)).to.be.revertedWith(
+            await expect(blockchainDeals.getDealById(1)).to.be.revertedWith(
                 "Invalid ID"
             );
         });
@@ -29,10 +30,10 @@ describe("Trustless Deal", function () {
             const value = 1000;
             const buyerDeposit = 1100;
             const sellerDeposit = 100;
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: value + buyerDeposit
             });
-            const deal = await blockchainDeals.getTrustlessDealById(0);
+            const deal = await blockchainDeals.getDealById(0);
             expect(deal.buyer).to.equal(buyerAccount.address);
             expect(deal.seller).to.equal(sellerAccount.address);
             expect(deal.id).to.equal(0);
@@ -40,14 +41,14 @@ describe("Trustless Deal", function () {
         });
     });
 
-    describe("createTrustlessDealAsBuyer", function () {
+    describe("createDealAsBuyer", function () {
         it("should revert if seller is also buyer", async function () {
             const { blockchainDeals, owner: buyerAccount } = await loadFixture(deployFixture);
             const value = 100;
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await expect(blockchainDeals.createTrustlessDealAsBuyer(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.createDealAsBuyer(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: value + buyerDeposit
             })).to.be.revertedWith(
                 "The buyer can't also be the seller"
@@ -60,7 +61,7 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await expect(blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: value + buyerDeposit
             })).to.be.revertedWith(
                 "Invalid value or deposit"
@@ -73,7 +74,7 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await expect(blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: value + buyerDeposit
             })).to.be.revertedWith(
                 "Invalid value or deposit"
@@ -86,7 +87,7 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await expect(blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: value + buyerDeposit - 10
             })).to.be.revertedWith(
                 "Invalid value or deposit"
@@ -99,28 +100,27 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 0;
 
-            await expect(blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: value + buyerDeposit
             })).to.be.revertedWith(
                 "Invalid value or deposit"
             );
         });
 
-        it("should create trustless Deal", async function () {
+        it("should create Deal", async function () {
             const { blockchainDeals, owner: buyerAccount, otherAccount: sellerAccount } = await loadFixture(deployFixture);
             const value = 100;
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: value + buyerDeposit
             });
 
             const {timestamp} = await hre.ethers.provider.getBlock("latest")
-            const deal = await blockchainDeals.getTrustlessDealById(0);
+            const deal = await blockchainDeals.getDealById(0);
                 
             expect(deal.id).to.equal(0);
-            expect(deal.dealType).to.equal(0);
             expect(deal.buyer).to.equal(buyerAccount.address);
             expect(deal.seller).to.equal(sellerAccount.address);
             expect(deal.creator).to.equal("buyer");
@@ -128,7 +128,7 @@ describe("Trustless Deal", function () {
             expect(deal.buyerDeposit).to.equal(buyerDeposit);
             expect(deal.sellerDeposit).to.equal(sellerDeposit);
             expect(deal.creationTime).to.equal(timestamp);
-            expect(deal.state).to.equal(3);
+            expect(deal.state).to.equal(dealStateMapper.PendingSellerDeposit);
         });
 
         it("should emit DealCreated event", async function () {
@@ -138,22 +138,22 @@ describe("Trustless Deal", function () {
             const sellerDeposit = 30;
             const timestamp = await hre.ethers.provider.send("evm_setNextBlockTimestamp", [1786774140])
 
-            await expect(blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: value + buyerDeposit
             }))
                 .to.emit(blockchainDeals, "DealCreated")
-                .withArgs("trustless", 0, buyerAccount.address, sellerAccount.address, ethers.constants.AddressZero, timestamp, value, "pending_seller_deposit");
+                .withArgs(0, buyerAccount.address, sellerAccount.address, timestamp, value);
         });
     });
 
-    describe("createTrustlessDealAsSeller", function () {
+    describe("createDealAsSeller", function () {
         it("should revert if seller is also buyer", async function () {
             const { blockchainDeals, owner: buyerAccount, otherAccount: sellerAccount } = await loadFixture(deployFixture);
             const value = 100;
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await expect(blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.connect(sellerAccount).createDealAsSeller(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             })).to.be.revertedWith(
                 "The buyer can't also be the seller"
@@ -166,7 +166,7 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await expect(blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             })).to.be.revertedWith(
                 "Invalid value or deposit"
@@ -179,7 +179,7 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 0;
             const sellerDeposit = 30;
 
-            await expect(blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             })).to.be.revertedWith(
                 "Invalid value or deposit"
@@ -192,7 +192,7 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 100;
             const sellerDeposit = 0;
 
-            await expect(blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             })).to.be.revertedWith(
                 "Invalid value or deposit"
@@ -205,28 +205,27 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await expect(blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit - 10
             })).to.be.revertedWith(
                 "Invalid value or deposit"
             );
         });
 
-        it("should create trustless Deal", async function () {
+        it("should create Deal", async function () {
             const { blockchainDeals, owner: buyerAccount, otherAccount: sellerAccount } = await loadFixture(deployFixture);
             const value = 100;
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
             const {timestamp} = await hre.ethers.provider.getBlock("latest")
-            const deal = await blockchainDeals.getTrustlessDealById(0);
+            const deal = await blockchainDeals.getDealById(0);
                 
             expect(deal.id).to.equal(0);
-            expect(deal.dealType).to.equal(0);
             expect(deal.buyer).to.equal(buyerAccount.address);
             expect(deal.seller).to.equal(sellerAccount.address);
             expect(deal.creator).to.equal("seller");
@@ -234,7 +233,7 @@ describe("Trustless Deal", function () {
             expect(deal.buyerDeposit).to.equal(buyerDeposit);
             expect(deal.sellerDeposit).to.equal(sellerDeposit);
             expect(deal.creationTime).to.equal(timestamp);
-            expect(deal.state).to.equal(4);
+            expect(deal.state).to.equal(dealStateMapper.PendingBuyerDeposit);
         });
 
         it("should emit DealCreated event", async function () {
@@ -244,19 +243,19 @@ describe("Trustless Deal", function () {
             const sellerDeposit = 30;
             const timestamp = await hre.ethers.provider.send("evm_setNextBlockTimestamp", [1786774140])
 
-            await expect(blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await expect(blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             }))
                 .to.emit(blockchainDeals, "DealCreated")
-                .withArgs("trustless", 0, buyerAccount.address, sellerAccount.address, ethers.constants.AddressZero, timestamp, value, "pending_buyer_deposit");
+                .withArgs(0, buyerAccount.address, sellerAccount.address, timestamp, value);
         });
     });
 
-    describe("buyerCancelTrustlessDeal", function () {
+    describe("buyerCancelDeal", function () {
         it("should revert when trying to cancel a Deal with an invalid ID", async function () {
             const { blockchainDeals } = await loadFixture(deployFixture);
       
-            await expect(blockchainDeals.buyerCancelTrustlessDeal(1)).to.be.revertedWith(
+            await expect(blockchainDeals.buyerCancelDeal(1)).to.be.revertedWith(
                 "Invalid ID"
             );
         });
@@ -268,11 +267,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await expect(blockchainDeals.connect(sellerAccount).buyerCancelTrustlessDeal(0)).to.be.revertedWith(
+            await expect(blockchainDeals.connect(sellerAccount).buyerCancelDeal(0)).to.be.revertedWith(
                 "Only the buyer can cancel the Deal"
             );
         });
@@ -284,11 +283,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await expect(blockchainDeals.buyerCancelTrustlessDeal(0)).to.be.revertedWith(
+            await expect(blockchainDeals.buyerCancelDeal(0)).to.be.revertedWith(
                 "Deal can't be cancelled"
             );
         });
@@ -300,13 +299,13 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, { value: sellerDeposit});
+            await blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, { value: sellerDeposit});
 
-            await expect(blockchainDeals.buyerCancelTrustlessDeal(0)).to.be.revertedWith(
+            await expect(blockchainDeals.buyerCancelDeal(0)).to.be.revertedWith(
                 "Deal can't be cancelled"
             );
         });
@@ -318,12 +317,12 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
             const prevBuyerBalance = await hre.ethers.provider.getBalance(buyerAccount.address);
-            const tx = await blockchainDeals.buyerCancelTrustlessDeal(0);
+            const tx = await blockchainDeals.buyerCancelDeal(0);
             const receipt = await tx.wait();
 
             const newBuyerBalance = await hre.ethers.provider.getBalance(buyerAccount.address);
@@ -338,23 +337,23 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.buyerCancelTrustlessDeal(0);
+            await blockchainDeals.buyerCancelDeal(0);
 
-            const deal = await blockchainDeals.getTrustlessDealById(0);
+            const deal = await blockchainDeals.getDealById(0);
 
-            expect(deal.state).to.equal(6);
+            expect(deal.state).to.equal(dealStateMapper.CancelledByCreator);
         });
     });
 
-    describe("sellerCancelTrustlessDeal", function () {
+    describe("sellerCancelDeal", function () {
         it("should revert when trying to cancel a Deal with an invalid ID", async function () {
             const { blockchainDeals } = await loadFixture(deployFixture);
       
-            await expect(blockchainDeals.sellerCancelTrustlessDeal(1)).to.be.revertedWith(
+            await expect(blockchainDeals.sellerCancelDeal(1)).to.be.revertedWith(
                 "Invalid ID"
             );
         });
@@ -366,11 +365,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await expect(blockchainDeals.sellerCancelTrustlessDeal(0)).to.be.revertedWith(
+            await expect(blockchainDeals.sellerCancelDeal(0)).to.be.revertedWith(
                 "Only the seller can cancel the Deal"
             );
         });
@@ -382,11 +381,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: value + buyerDeposit
             });
 
-            await expect(blockchainDeals.connect(sellerAccount).sellerCancelTrustlessDeal(0)).to.be.revertedWith(
+            await expect(blockchainDeals.connect(sellerAccount).sellerCancelDeal(0)).to.be.revertedWith(
                 "Deal can't be cancelled"
             );
         });
@@ -398,13 +397,13 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await blockchainDeals.buyerConfirmTrustless(0, { value: value + buyerDeposit});
+            await blockchainDeals.buyerConfirmDeal(0, { value: value + buyerDeposit});
 
-            await expect(blockchainDeals.connect(sellerAccount).sellerCancelTrustlessDeal(0)).to.be.revertedWith(
+            await expect(blockchainDeals.connect(sellerAccount).sellerCancelDeal(0)).to.be.revertedWith(
                 "Deal can't be cancelled"
             );
         });
@@ -416,12 +415,12 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
             const prevSellerBalance = await hre.ethers.provider.getBalance(sellerAccount.address);
-            const tx = await blockchainDeals.connect(sellerAccount).sellerCancelTrustlessDeal(0);
+            const tx = await blockchainDeals.connect(sellerAccount).sellerCancelDeal(0);
             const receipt = await tx.wait();
 
             const newSellerBalance = await hre.ethers.provider.getBalance(sellerAccount.address);
@@ -436,23 +435,23 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await blockchainDeals.connect(sellerAccount).sellerCancelTrustlessDeal(0);
+            await blockchainDeals.connect(sellerAccount).sellerCancelDeal(0);
 
-            const deal = await blockchainDeals.getTrustlessDealById(0);
+            const deal = await blockchainDeals.getDealById(0);
 
-            expect(deal.state).to.equal(6);
+            expect(deal.state).to.equal(dealStateMapper.CancelledByCreator);
         });
     });
 
-    describe("buyerConfirmTrustless", async function () {
+    describe("buyerConfirmDeal", async function () {
         it("should revert when trying to confirm a Deal with an invalid ID", async function () {
             const { blockchainDeals } = await loadFixture(deployFixture);
       
-            await expect(blockchainDeals.buyerConfirmTrustless(1, {value: 100})).to.be.revertedWith(
+            await expect(blockchainDeals.buyerConfirmDeal(1, {value: 100})).to.be.revertedWith(
                 "Invalid ID"
             );
         });
@@ -464,11 +463,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await expect(blockchainDeals.connect(sellerAccount).buyerConfirmTrustless(0, {value: value + buyerDeposit})).to.be.revertedWith(
+            await expect(blockchainDeals.connect(sellerAccount).buyerConfirmDeal(0, {value: value + buyerDeposit})).to.be.revertedWith(
                 "Only the buyer can confirm the Deal"
             );
         });
@@ -480,11 +479,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await expect(blockchainDeals.buyerConfirmTrustless(0, {value: value + buyerDeposit - 10})).to.be.revertedWith(
+            await expect(blockchainDeals.buyerConfirmDeal(0, {value: value + buyerDeposit - 10})).to.be.revertedWith(
                 "Not enough ETH to confirm the Deal"
             );
         });
@@ -496,11 +495,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await expect(blockchainDeals.buyerConfirmTrustless(0, {value: value + buyerDeposit})).to.be.revertedWith(
+            await expect(blockchainDeals.buyerConfirmDeal(0, {value: value + buyerDeposit})).to.be.revertedWith(
                 "Deal can't be confirmed"
             );
         });
@@ -512,13 +511,13 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await blockchainDeals.buyerConfirmTrustless(0, {value: value + buyerDeposit});
+            await blockchainDeals.buyerConfirmDeal(0, {value: value + buyerDeposit});
 
-            await expect(blockchainDeals.buyerConfirmTrustless(0, {value: value + buyerDeposit})).to.be.revertedWith(
+            await expect(blockchainDeals.buyerConfirmDeal(0, {value: value + buyerDeposit})).to.be.revertedWith(
                 "Deal can't be confirmed"
             );
         });
@@ -530,13 +529,13 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await blockchainDeals.connect(sellerAccount).sellerCancelTrustlessDeal(0);
+            await blockchainDeals.connect(sellerAccount).sellerCancelDeal(0);
 
-            await expect(blockchainDeals.buyerConfirmTrustless(0, {value: value + buyerDeposit})).to.be.revertedWith(
+            await expect(blockchainDeals.buyerConfirmDeal(0, {value: value + buyerDeposit})).to.be.revertedWith(
                 "Deal can't be confirmed"
             );
         });
@@ -548,23 +547,23 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await blockchainDeals.buyerConfirmTrustless(0, {value: value + buyerDeposit});
+            await blockchainDeals.buyerConfirmDeal(0, {value: value + buyerDeposit});
 
-            const deal = await blockchainDeals.getTrustlessDealById(0);
+            const deal = await blockchainDeals.getDealById(0);
 
-            expect(deal.state).to.equal(5);
+            expect(deal.state).to.equal(dealStateMapper.Confirmed);
         });
     });
 
-    describe("sellerConfirmTrustless", async function () {
+    describe("sellerConfirmDeal", async function () {
         it("should revert when trying to confirm a Deal with an invalid ID", async function () {
             const { blockchainDeals } = await loadFixture(deployFixture);
       
-            await expect(blockchainDeals.sellerConfirmTrustless(1, {value: 100})).to.be.revertedWith(
+            await expect(blockchainDeals.sellerConfirmDeal(1, {value: 100})).to.be.revertedWith(
                 "Invalid ID"
             );
         });
@@ -576,11 +575,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await expect(blockchainDeals.sellerConfirmTrustless(0, {value: sellerDeposit})).to.be.revertedWith(
+            await expect(blockchainDeals.sellerConfirmDeal(0, {value: sellerDeposit})).to.be.revertedWith(
                 "Only the seller can confirm the Deal"
             );
         });
@@ -592,11 +591,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await expect(blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit - 10})).to.be.revertedWith(
+            await expect(blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit - 10})).to.be.revertedWith(
                 "Not enough ETH to confirm the Deal"
             );
         });
@@ -608,11 +607,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await expect(blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit})).to.be.revertedWith(
+            await expect(blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit})).to.be.revertedWith(
                 "Deal can't be confirmed"
             );
         });
@@ -624,13 +623,13 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit});
+            await blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit});
 
-            await expect(blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit})).to.be.revertedWith(
+            await expect(blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit})).to.be.revertedWith(
                 "Deal can't be confirmed"
             );
         });
@@ -642,13 +641,13 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.buyerCancelTrustlessDeal(0);
+            await blockchainDeals.buyerCancelDeal(0);
 
-            await expect(blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit})).to.be.revertedWith(
+            await expect(blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit})).to.be.revertedWith(
                 "Deal can't be confirmed"
             );
         });
@@ -660,23 +659,23 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit});
+            await blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit});
 
-            const deal = await blockchainDeals.getTrustlessDealById(0);
+            const deal = await blockchainDeals.getDealById(0);
 
-            expect(deal.state).to.equal(5);
+            expect(deal.state).to.equal(dealStateMapper.Confirmed);
         });
     });
 
-    describe("completeTrustlessDeal", async function () {
+    describe("completeDeal", async function () {
         it("should revert when trying to confirm a Deal with an invalid ID", async function () {
             const { blockchainDeals } = await loadFixture(deployFixture);
       
-            await expect(blockchainDeals.completeTrustlessDeal(1)).to.be.revertedWith(
+            await expect(blockchainDeals.completeDeal(1)).to.be.revertedWith(
                 "Invalid ID"
             );
         });
@@ -688,13 +687,13 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit});
+            await blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit});
 
-            await expect(blockchainDeals.connect(sellerAccount).completeTrustlessDeal(0)).to.be.revertedWith(
+            await expect(blockchainDeals.connect(sellerAccount).completeDeal(0)).to.be.revertedWith(
                 "Only the buyer can complete the Deal"
             );
         });
@@ -706,11 +705,11 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await expect(blockchainDeals.completeTrustlessDeal(0)).to.be.revertedWith(
+            await expect(blockchainDeals.completeDeal(0)).to.be.revertedWith(
                 "Deal can't be completed"
             );
         });
@@ -722,13 +721,13 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 110;
             const sellerDeposit = 30;
 
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.buyerCancelTrustlessDeal(0);
+            await blockchainDeals.buyerCancelDeal(0);
 
-            await expect(blockchainDeals.completeTrustlessDeal(0)).to.be.revertedWith(
+            await expect(blockchainDeals.completeDeal(0)).to.be.revertedWith(
                 "Deal can't be completed"
             );
         });
@@ -739,31 +738,31 @@ describe("Trustless Deal", function () {
             const buyerDeposit = 1200000;
             const sellerDeposit = 300000;
             const fee = value * 10 / 10000;
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit});
+            await blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit});
             const prevBalance = await hre.ethers.provider.getBalance(sellerAccount.address);
-            await blockchainDeals.completeTrustlessDeal(0);
+            await blockchainDeals.completeDeal(0);
             const newBalance = await hre.ethers.provider.getBalance(sellerAccount.address);
 
             expect(newBalance).to.equal(BigInt(prevBalance) + BigInt(sellerDeposit) + BigInt(value) - BigInt(fee));
         });
 
-        it("should send the seller deposit plus the value minus the fee to the seller (createTrustlessDealAsSeller)", async function () {
+        it("should send the seller deposit plus the value minus the fee to the seller (createDealAsSeller)", async function () {
             const { blockchainDeals, owner: buyerAccount, otherAccount: sellerAccount } = await loadFixture(deployFixture);
             const value = 1000000;
             const buyerDeposit = 1200000;
             const sellerDeposit = 300000;
             const fee = value * 10 / 10000;
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await blockchainDeals.buyerConfirmTrustless(0, {value: value + buyerDeposit});
+            await blockchainDeals.buyerConfirmDeal(0, {value: value + buyerDeposit});
             const prevBalance = await hre.ethers.provider.getBalance(sellerAccount.address);
-            await blockchainDeals.completeTrustlessDeal(0);
+            await blockchainDeals.completeDeal(0);
             const newBalance = await hre.ethers.provider.getBalance(sellerAccount.address);
 
             expect(newBalance).to.equal(BigInt(prevBalance) + BigInt(sellerDeposit) + BigInt(value) - BigInt(fee));
@@ -774,13 +773,13 @@ describe("Trustless Deal", function () {
             const value = 1000000;
             const buyerDeposit = 1200000;
             const sellerDeposit = 300000;
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit});
+            await blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit});
             const prevBalance = await hre.ethers.provider.getBalance(buyerAccount.address);
-            const tx = await blockchainDeals.completeTrustlessDeal(0);
+            const tx = await blockchainDeals.completeDeal(0);
             const receipt = await tx.wait();
             const newBalance = await hre.ethers.provider.getBalance(buyerAccount.address);
 
@@ -788,18 +787,18 @@ describe("Trustless Deal", function () {
         });
 
 
-        it("should send the buyer deposit to the buyer (createTrustlessDealAsSeller)", async function () {
+        it("should send the buyer deposit to the buyer (createDealAsSeller)", async function () {
             const { blockchainDeals, owner: buyerAccount, otherAccount: sellerAccount } = await loadFixture(deployFixture);
             const value = 1000000;
             const buyerDeposit = 1200000;
             const sellerDeposit = 300000;
-            await blockchainDeals.connect(sellerAccount).createTrustlessDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.connect(sellerAccount).createDealAsSeller(value, buyerAccount.address, sellerDeposit, buyerDeposit, {
                 value: sellerDeposit
             });
 
-            await blockchainDeals.buyerConfirmTrustless(0, {value: value + buyerDeposit});
+            await blockchainDeals.buyerConfirmDeal(0, {value: value + buyerDeposit});
             const prevBalance = await hre.ethers.provider.getBalance(buyerAccount.address);
-            const tx = await blockchainDeals.completeTrustlessDeal(0);
+            const tx = await blockchainDeals.completeDeal(0);
             const receipt = await tx.wait();
             const newBalance = await hre.ethers.provider.getBalance(buyerAccount.address);
 
@@ -811,16 +810,16 @@ describe("Trustless Deal", function () {
             const value = 1000000;
             const buyerDeposit = 1200000;
             const sellerDeposit = 300000;
-            await blockchainDeals.createTrustlessDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
                 value: buyerDeposit + value
             });
 
-            await blockchainDeals.connect(sellerAccount).sellerConfirmTrustless(0, {value: sellerDeposit});
-            await blockchainDeals.completeTrustlessDeal(0);
+            await blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit});
+            await blockchainDeals.completeDeal(0);
 
-            const deal = await blockchainDeals.getTrustlessDealById(0);
+            const deal = await blockchainDeals.getDealById(0);
 
-            expect(deal.state).to.equal(7);
+            expect(deal.state).to.equal(dealStateMapper.Completed);
         });
     });
 });
