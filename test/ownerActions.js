@@ -86,5 +86,28 @@ describe("Owner actions", function () {
         const newBalance = await hre.ethers.provider.getBalance(owner.address);
         expect(newBalance).to.equal(BigInt(prevBalance) + BigInt(fee) - BigInt(receipt.gasUsed));
     });
+
+    it("should not be able to withdraw earnings a withdrawal", async function () {
+        const { blockchainDeals, owner, otherAccount: sellerAccount } = await loadFixture(deployFixture);
+        const value = 1000000;
+        const buyerDeposit = 1200000;
+        const sellerDeposit = 300000;
+        const fee = value * 10 / 10000;
+        await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            value: buyerDeposit + value
+        });
+
+        await blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {
+            value: buyerDeposit + value
+        });
+
+        await blockchainDeals.connect(sellerAccount).sellerConfirmDeal(0, {value: sellerDeposit});
+        await blockchainDeals.completeDeal(0);
+
+        await blockchainDeals.withdrawFeeEarnings();
+        await expect(blockchainDeals.withdrawFeeEarnings()).to.be.revertedWith(
+            "There are no earnings to withdraw"
+        );
+    });
 });
   
