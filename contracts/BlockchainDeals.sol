@@ -7,9 +7,9 @@ pragma solidity ^0.8.9;
 /**
  *  @title BlockchainDeals
  *
- **********************************************************************************************************************
- * Exchange goods or services for ETH safely, with friends or complete extrangers, backed by the Ethereum blockchain. *
- **********************************************************************************************************************
+ *****************************************************************************************************
+ * Exchange goods or services safely, with friends or complete extrangers, backed by the blockchain. *
+ *****************************************************************************************************
  *
  *
  *  The Deal manager contract. Keeps track of every deal ever created.
