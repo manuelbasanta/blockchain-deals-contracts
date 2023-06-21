@@ -83,6 +83,7 @@ contract BlockchainDeals {
         require(feeEarnings > 0, "There are no earnings to withdraw");
         (bool sent, ) = payable(owner).call{value: feeEarnings}("");
         require(sent, "Failed to send Ether");
+        feeEarnings = 0;
     }
 
     /******************** DEAL ********************/

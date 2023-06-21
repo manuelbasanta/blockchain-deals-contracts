@@ -1,5 +1,5 @@
 const hre = require("hardhat");
-const SEPOLIA_CONTRACT_ADDRESS = '0xBEF7Eb6B57030D809f922654b0597831861F6CdF';
+const SEPOLIA_CONTRACT_ADDRESS = '0xE35E7d9a4b8e01869ca2789dA9f7feB1457C8Ee4';
 async function main() {
   const blockchainDeals = await hre.ethers.getContractAt("BlockchainDeals", SEPOLIA_CONTRACT_ADDRESS);
   const tx = await blockchainDeals.withdrawFeeEarnings();
