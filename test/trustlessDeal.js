@@ -68,10 +68,10 @@ describe("Deal", function () {
             );
         });
 
-        it("should revert if deposit is less than value", async function () {
+        it("should revert if deposit is 0 or less", async function () {
             const { blockchainDeals, otherAccount: sellerAccount } = await loadFixture(deployFixture);
             const value = 1000;
-            const buyerDeposit = 110;
+            const buyerDeposit = 0;
             const sellerDeposit = 30;
 
             await expect(blockchainDeals.createDealAsBuyer(value, sellerAccount.address, sellerDeposit, buyerDeposit, {

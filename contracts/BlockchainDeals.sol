@@ -110,7 +110,7 @@ contract BlockchainDeals {
     */
     function createDealAsBuyer(uint _value, address _seller, uint _sellerDeposit, uint _buyerDeposit) external payable {
         require(_seller != msg.sender, "The buyer can't also be the seller");
-        require(_value > 0 && _buyerDeposit >= _value && _value + _buyerDeposit <= msg.value && _sellerDeposit > 0, "Invalid value or deposit");
+        require(_value > 0 && _buyerDeposit > 0 && _value + _buyerDeposit <= msg.value && _sellerDeposit > 0, "Invalid value or deposit");
         uint id = deals.length;
         Deal memory newDeal = Deal(id, msg.sender, _seller, "buyer", _value, _buyerDeposit, _sellerDeposit, block.timestamp, State.PendingSellerDeposit);
         deals.push(newDeal);
